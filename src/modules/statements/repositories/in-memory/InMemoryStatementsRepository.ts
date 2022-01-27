@@ -4,6 +4,12 @@ import { IGetBalanceDTO } from "../../useCases/getBalance/IGetBalanceDTO";
 import { IGetStatementOperationDTO } from "../../useCases/getStatementOperation/IGetStatementOperationDTO";
 import { IStatementsRepository } from "../IStatementsRepository";
 
+enum OperationType {
+  DEPOSIT = 'deposit',
+  WITHDRAW = 'withdraw',
+  TRANSFER = 'transfer'
+}
+
 export class InMemoryStatementsRepository implements IStatementsRepository {
   private statements: Statement[] = [];
 
@@ -27,13 +33,21 @@ export class InMemoryStatementsRepository implements IStatementsRepository {
   async getUserBalance({ user_id, with_statement = false }: IGetBalanceDTO):
     Promise<
       { balance: number } | { balance: number, statement: Statement[] }
-    >
-  {
-    const statement = this.statements.filter(operation => operation.user_id === user_id);
+    > {
+    const statement = this.statements.filter(
+      operation =>
+        operation.user_id === user_id ||
+        operation.sender_id === user_id
+    );
 
     const balance = statement.reduce((acc, operation) => {
-      if (operation.type === 'deposit') {
+      if (operation.type === OperationType.DEPOSIT) {
         return acc + operation.amount;
+      } if (operation.type === OperationType.TRANSFER) {
+        if (operation.sender_id === user_id) {
+          return acc - operation.amount
+        }
+        return acc + operation.amount
       } else {
         return acc - operation.amount;
       }
